@@ -1,0 +1,23 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+context: |
+  Tech stack: Python 3.11+, stdlib argparse for the CLI, the `openai` Python package
+  as the client, pointed at an OpenAI-compatible endpoint via a configurable base_url
+  so any OpenAI-compatible provider works, not just OpenAI itself.
+  Domain: a small, single-user command-line travel itinerary generator. Given a
+  destination, trip length, and traveler preferences, it produces a structured
+  day-by-day itinerary.
+  No database, no web server, no auth — this is a local CLI tool, intentionally small.
+  The API key is never hardcoded; it is read from an environment variable at runtime.
+  Since no live API key is available yet, code must be structured so that everything
+  except the actual network call can be exercised and verified without one.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+rules:
+  tasks:
+    - Break tasks into small, independently verifiable steps
+    - The final tasks must include verification steps that do not require a live API key
