@@ -1,7 +1,6 @@
 # Spec-Driven Development with OpenSpec and Claude Code
 
 [![View Website](https://img.shields.io/badge/View%20Website-2f8fe0?style=for-the-badge)](https://sarveshtalele.github.io/sdd-development-using-openspec-with-claude-guide/)
-[![Deploy Docs](https://github.com/sarveshtalele/sdd-development-using-openspec-with-claude-guide/actions/workflows/deploy-docs.yml/badge.svg)](https://github.com/sarveshtalele/sdd-development-using-openspec-with-claude-guide/actions/workflows/deploy-docs.yml)
 
 Every document in this repository is also published as a styled, browsable website —
 [**view it here**](https://sarveshtalele.github.io/sdd-development-using-openspec-with-claude-guide/)
