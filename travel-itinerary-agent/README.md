@@ -42,4 +42,4 @@ The test suite covers argument parsing, configuration loading, response-shape
 validation, error handling, and rendering entirely without a live API key, using a
 stand-in client in place of the network call (see `tests/test_generator.py`). A live
 run against a real OpenAI-compatible endpoint has also been verified, including both
-the success path and an API-level failure path — see Step 6 of `BUILD-LOG.md`.
+the success path and an API-level failure path — see `BUILD-LOG.md`, Sections 6-7.
