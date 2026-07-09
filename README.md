@@ -15,14 +15,11 @@ not a one-time planning document that goes stale — it is a durable artifact th
 in sync with the codebase as the codebase evolves.
 
 In practice, using OpenSpec, this means every non-trivial change moves through four
-reviewable artifacts before implementation begins:
-
-| Artifact | Answers |
-|---|---|
-| `proposal.md` | Why does this change need to happen? What changes? What is explicitly out of scope? |
-| `design.md` | What is the technical approach, and what are the key decisions? |
-| `specs/<capability>/spec.md` | What is the exact required behavior, expressed as testable scenarios? |
-| `tasks.md` | What are the ordered, checkable implementation steps? |
+reviewable artifacts before implementation begins: `proposal.md` (why does this change
+need to happen, and what is explicitly out of scope), `design.md` (the technical
+approach and key decisions), `specs/<capability>/spec.md` (the exact required behavior,
+expressed as testable scenarios), and `tasks.md` (the ordered, checkable implementation
+steps).
 
 Once every task in a change is implemented and genuinely verified — not just marked
 done — the change is **archived**: its specs are folded into `openspec/specs/`
@@ -53,25 +50,3 @@ projects, is documented in
 | [claude-guide/03-adding-mcp-servers.md](claude-guide/03-adding-mcp-servers.md) | How to add, scope, authenticate, and manage MCP servers in Claude Code, individually and for a team. |
 | [claude-guide/04-general-guide.md](claude-guide/04-general-guide.md) | An orientation guide to Claude Code's four extensibility mechanisms — Skills, Subagents, Hooks, and Plugins — how each works, and how to choose between them. |
 | [claude-guide/05-creating-claude-md.md](claude-guide/05-creating-claude-md.md) | What `CLAUDE.md` is, why it exists, how it loads and how it differs from Skills, and how to create and maintain one. |
-
-## Official Documentation Links
-
-| Topic | Official Source |
-|---|---|
-| OpenSpec | [github.com/Fission-AI/OpenSpec](https://github.com/Fission-AI/OpenSpec) |
-| Claude Code overview | [code.claude.com/docs/en/how-claude-code-works.md](https://code.claude.com/docs/en/how-claude-code-works.md) |
-| Skills in Claude Code | [code.claude.com/docs/en/skills.md](https://code.claude.com/docs/en/skills.md) |
-| The `.claude` directory | [code.claude.com/docs/en/claude-directory.md](https://code.claude.com/docs/en/claude-directory.md) |
-| Subagents | [code.claude.com/docs/en/subagents.md](https://code.claude.com/docs/en/subagents.md) |
-| Hooks reference | [code.claude.com/docs/en/hooks.md](https://code.claude.com/docs/en/hooks.md) |
-| Hooks guide | [code.claude.com/docs/en/hooks-guide.md](https://code.claude.com/docs/en/hooks-guide.md) |
-| Plugins | [code.claude.com/docs/en/plugins.md](https://code.claude.com/docs/en/plugins.md) |
-| Custom slash commands | [code.claude.com/docs/en/commands.md](https://code.claude.com/docs/en/commands.md) |
-| Connecting MCP servers | [code.claude.com/docs/en/mcp](https://code.claude.com/docs/en/mcp) |
-| MCP quickstart | [code.claude.com/docs/en/mcp-quickstart](https://code.claude.com/docs/en/mcp-quickstart) |
-| CLI reference | [code.claude.com/docs/en/cli-reference](https://code.claude.com/docs/en/cli-reference) |
-| Agent Skills overview | [platform.claude.com/docs/en/agents-and-tools/agent-skills/overview](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview) |
-| Agent Skills best practices | [platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) |
-| Agent Skills open standard | [agentskills.io](https://agentskills.io) |
-| Project memory (CLAUDE.md) | [code.claude.com/docs/en/memory](https://code.claude.com/docs/en/memory) |
-# sdd-development-uisng-openspec-with-claude-guide

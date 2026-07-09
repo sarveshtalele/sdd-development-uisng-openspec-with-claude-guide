@@ -327,8 +327,6 @@ adding a correctly structured directory.
 
 ## 14. Related Documentation
 
-See the [official documentation links table](../README.md#official-documentation-links)
-in this repository's root README for the authoritative Anthropic sources this document
-was built from, and [Agent Skills](02-creating-agent-skills.md) for the architecture
-underneath this file format — why it is designed the way it is, and how Claude decides
-what to load and when.
+See [Agent Skills](02-creating-agent-skills.md) for the architecture underneath this
+file format — why it is designed the way it is, and how Claude decides what to load and
+when.

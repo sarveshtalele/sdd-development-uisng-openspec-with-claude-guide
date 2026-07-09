@@ -376,6 +376,8 @@ in the committed file itself.
 
 ## 13. Related Documentation
 
-See the [official documentation links table](../README.md#official-documentation-links)
-in this repository's root README for the authoritative Anthropic sources this document
-was built from.
+See [code.claude.com/docs/en/mcp](https://code.claude.com/docs/en/mcp) and
+[code.claude.com/docs/en/mcp-quickstart](https://code.claude.com/docs/en/mcp-quickstart)
+for Anthropic's official MCP documentation, and [Claude Code's general extensibility
+guide](04-general-guide.md) for how MCP servers relate to Skills, Subagents, Hooks, and
+Plugins.

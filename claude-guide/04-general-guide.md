@@ -363,8 +363,5 @@ every engineer on the team gets the same setup with a single `/plugin install`.
 ## 11. Related Documentation
 
 See [Creating a SKILL.md File in Claude Code](01-creating-a-skill.md) and [Agent
-Skills](02-creating-agent-skills.md) for the full Skill reference, [Creating a CLAUDE.md
-File](05-creating-claude-md.md) for the companion project-memory mechanism, and the
-[official documentation links table](../README.md#official-documentation-links) in this
-repository's root README for the authoritative Anthropic sources this document was built
-from.
+Skills](02-creating-agent-skills.md) for the full Skill reference, and [Creating a
+CLAUDE.md File](05-creating-claude-md.md) for the companion project-memory mechanism.
