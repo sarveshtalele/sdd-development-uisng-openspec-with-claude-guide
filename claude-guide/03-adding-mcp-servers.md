@@ -3,15 +3,11 @@
 *A reference guide for connecting Claude Code to external tools and data sources
 through the Model Context Protocol.*
 
----
-
 ## 1. Purpose of This Document
 
 This document explains what the Model Context Protocol (MCP) is, why connecting an MCP
 server to Claude Code is useful, and how to add, authenticate, list, inspect, and remove
 MCP servers, at both an individual and a team level.
-
----
 
 ## 2. What Is MCP and Why Add a Server
 
@@ -32,8 +28,6 @@ that system directly. Representative examples:
 The signal that a new MCP server is worth adding is the same signal that motivates most
 integrations: repeatedly copying information from one tool into a Claude Code
 conversation by hand.
-
----
 
 ## 3. How MCP Servers Are Added
 
@@ -119,8 +113,6 @@ claude mcp add-from-claude-desktop
 This copies the relevant entries from Claude Desktop's own configuration file into
 Claude Code.
 
----
-
 ## 4. Choosing a Scope
 
 Every `claude mcp add` command accepts a `-s` / `--scope` flag that determines who can
@@ -146,8 +138,6 @@ On Windows, `~/.claude.json` resolves to `%USERPROFILE%\.claude.json`. If the
 `CLAUDE_CONFIG_DIR` environment variable is set, Claude Code reads `.claude.json` from
 inside that directory instead.
 
----
-
 ## 5. Managing Configured Servers
 
 | Command | Purpose |
@@ -167,8 +157,6 @@ Status indicators shown by `claude mcp list`:
 | Failed to connect | The server did not respond. |
 | Connection error | The connection attempt raised an error. |
 | Pending approval | A project-scoped server is awaiting your one-time approval. |
-
----
 
 ## 6. Checking MCP Status Inside a Session
 
@@ -200,8 +188,6 @@ the prompt. To clear stored credentials for a server:
 claude mcp logout <server-name>
 ```
 
----
-
 ## 7. Authenticating Remote Servers
 
 Two authentication patterns are supported for HTTP servers:
@@ -228,8 +214,6 @@ claude mcp login sentry --callback-port 8080
 claude mcp add --transport http github https://api.githubcopilot.com/mcp/ \
   --header "Authorization: Bearer <TOKEN>"
 ```
-
----
 
 ## 8. Environment Variable Expansion in `.mcp.json`
 
@@ -258,8 +242,6 @@ configuration.
   }
 }
 ```
-
----
 
 ## 9. Practical Example: Adding the GitHub MCP Server End to End
 
@@ -317,8 +299,6 @@ A secret committed in plain text like this is only appropriate for a personal-sc
 file that is not checked in. For a team-shared `.mcp.json`, use environment variable
 expansion instead — see Section 10.
 
----
-
 ## 10. Project-Level `.mcp.json` for Team Sharing
 
 A `.mcp.json` file in the project root, committed to version control, lets an entire
@@ -369,8 +349,6 @@ with `claude mcp login <name>`. Secrets referenced with `${VAR}` (for example
 `GITHUB_TOKEN`) must be set in each teammate's own environment — they are never stored
 in the committed file itself.
 
----
-
 ## 11. Best Practices
 
 - Default to `project` scope for anything the whole team should use, and reference
@@ -386,8 +364,6 @@ in the committed file itself.
   the set of project-scoped servers in `.mcp.json` has changed significantly and needs
   re-review.
 
----
-
 ## 12. Common Pitfalls
 
 | Symptom | Likely cause | Fix |
@@ -397,8 +373,6 @@ in the committed file itself.
 | Server works locally but not for teammates | Server was added with the default `local` scope instead of `project` | Re-add with `--scope project`, or move the entry into `.mcp.json` directly |
 | Stdio server times out on first run | Underlying command (for example `npx`) is downloading a package for the first time | Increase the timeout with `MCP_TIMEOUT=60000 claude` |
 | Secret token visible in git history | Token was written directly into a committed `.mcp.json` instead of referenced via `${VAR}` | Rotate the token, then switch the configuration to environment variable expansion |
-
----
 
 ## 13. Related Documentation
 

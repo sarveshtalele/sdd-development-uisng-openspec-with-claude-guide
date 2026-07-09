@@ -6,8 +6,6 @@ This repository is a single reference point for two related things: how to pract
 Plugins, and MCP servers. It assumes no prior setup and no dependency on any specific
 project.
 
----
-
 ## 1. What Is Spec-Driven Development
 
 Spec-Driven Development is a way of working where the specification of a change is
@@ -40,8 +38,6 @@ The full command-by-command workflow, including two complete start-to-finish sam
 projects, is documented in
 [openspec-guide/Openspec-Documenetation.md](openspec-guide/Openspec-Documenetation.md).
 
----
-
 ## 2. Repository Contents
 
 | Path | Description |
@@ -51,11 +47,10 @@ projects, is documented in
 | [openspec-guide/Openspec-Documenetation.md](openspec-guide/Openspec-Documenetation.md) | OpenSpec reference: setup, the full `/opsx` command set (core and expanded profiles), the typical day-to-day loop, guidance for legacy/existing codebases, and two complete sample projects executed start to finish — one using the core profile, one using the expanded profile. |
 | [claude-guide/](claude-guide/) | Everything needed to configure and extend Claude Code itself, independent of OpenSpec. |
 | [claude-guide/01-creating-a-skill.md](claude-guide/01-creating-a-skill.md) | What a Skill is, why the feature exists, how it works, and how to author a `SKILL.md` file in Claude Code. |
-| [claude-guide/02-creating-agent-skills.md](claude-guide/02-creating-agent-skills.md) | The portable Agent Skills standard: how the same `SKILL.md` format is used across the Claude API and Claude.ai, and how to build and deploy a custom Skill beyond Claude Code. |
+| [claude-guide/02-creating-agent-skills.md](claude-guide/02-creating-agent-skills.md) | The Agent Skills architecture underneath `SKILL.md`: progressive disclosure, how Claude loads and executes Skill content via scripts and bash, and security considerations. |
 | [claude-guide/03-adding-mcp-servers.md](claude-guide/03-adding-mcp-servers.md) | How to add, scope, authenticate, and manage MCP servers in Claude Code, individually and for a team. |
 | [claude-guide/04-general-guide.md](claude-guide/04-general-guide.md) | An orientation guide to Claude Code's four extensibility mechanisms — Skills, Subagents, Hooks, and Plugins — how each works, and how to choose between them. |
-
----
+| [claude-guide/05-creating-claude-md.md](claude-guide/05-creating-claude-md.md) | What `CLAUDE.md` is, why it exists, how it loads and how it differs from Skills, and how to create and maintain one. |
 
 ## Official Documentation Links
 
@@ -73,9 +68,8 @@ projects, is documented in
 | Connecting MCP servers | [code.claude.com/docs/en/mcp](https://code.claude.com/docs/en/mcp) |
 | MCP quickstart | [code.claude.com/docs/en/mcp-quickstart](https://code.claude.com/docs/en/mcp-quickstart) |
 | CLI reference | [code.claude.com/docs/en/cli-reference](https://code.claude.com/docs/en/cli-reference) |
-| Agent Skills overview (cross-product standard) | [platform.claude.com/docs/en/agents-and-tools/agent-skills/overview](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview) |
+| Agent Skills overview | [platform.claude.com/docs/en/agents-and-tools/agent-skills/overview](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview) |
 | Agent Skills best practices | [platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) |
-| Agent Skills quickstart | [platform.claude.com/docs/en/agents-and-tools/agent-skills/quickstart](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/quickstart) |
-| Agent Skills with the Claude API | [platform.claude.com/docs/en/build-with-claude/skills-guide](https://platform.claude.com/docs/en/build-with-claude/skills-guide) |
 | Agent Skills open standard | [agentskills.io](https://agentskills.io) |
+| Project memory (CLAUDE.md) | [code.claude.com/docs/en/memory](https://code.claude.com/docs/en/memory) |
 # sdd-development-uisng-openspec-with-claude-guide

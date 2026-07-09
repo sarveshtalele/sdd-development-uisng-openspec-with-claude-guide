@@ -2,8 +2,6 @@
 
 *A reference guide for building, structuring, and maintaining Skills in Claude Code.*
 
----
-
 ## 1. Purpose of This Document
 
 This document explains what a Skill is, why the feature exists, how Claude Code
@@ -11,8 +9,6 @@ discovers and uses Skills at runtime, and how to author a `SKILL.md` file correc
 is intended as a self-contained reference for engineers, technical writers, and team
 leads who want to package repeatable instructions, procedures, or expertise into Claude
 Code.
-
----
 
 ## 2. What Is a Skill
 
@@ -22,16 +18,13 @@ combines YAML frontmatter (metadata) with markdown instructions. A Skill directo
 also bundle supporting files — reference documents, templates, or executable scripts —
 that Claude reads or runs only when the Skill is actually in use.
 
-Claude Code Skills follow the **Agent Skills open standard** (defined at
-`agentskills.io`), the same portable `SKILL.md` format used by the Claude Developer
-Platform (API) and Claude.ai, with a set of Claude Code–specific extensions layered on
-top. Section 2 of the companion document, [Creating Agent Skills](02-creating-agent-skills.md),
-covers that broader standard and how it differs across products.
+Claude Code Skills follow the **Agent Skills architecture**: a filesystem-based model
+built around progressive disclosure, with a set of Claude Code–specific frontmatter
+extensions layered on top (Section 7). See [Agent Skills](02-creating-agent-skills.md)
+for how that underlying architecture works and why it is designed the way it is.
 
 Once a Skill directory exists in the right location, Claude adds it to its toolkit
 automatically — there is no separate install or registration step.
-
----
 
 ## 3. Why Skills Exist
 
@@ -56,8 +49,6 @@ The official rationale, in summary:
 
 In short: create a Skill whenever the same instructions, checklist, or multi-step
 procedure keeps being pasted into chat by hand.
-
----
 
 ## 4. How Skills Work in Claude Code
 
@@ -88,8 +79,6 @@ automatic matching, by typing `/skill-name` in the Claude Code prompt.
 Adding, editing, or removing a Skill takes effect within the current session — Claude
 Code does not need to be restarted for a Skill change to be picked up.
 
----
-
 ## 5. Where Skills Live
 
 Skill directories are discovered from several locations, and higher-precedence
@@ -97,7 +86,6 @@ locations take priority when names collide.
 
 | Level | Location | Scope | Shared with team |
 |---|---|---|---|
-| Enterprise | Managed centrally by an organization's settings | All users in the organization | Yes, centrally managed |
 | Personal | `~/.claude/skills/<skill-name>/SKILL.md` | All of your own projects | No — local to your machine |
 | Project | `.claude/skills/<skill-name>/SKILL.md` | The current project only | Yes — commit to version control |
 | Plugin | `<plugin>/skills/<skill-name>/SKILL.md` | Wherever the plugin is enabled | Yes — distributed with the plugin |
@@ -118,8 +106,6 @@ Additional notes on discovery:
 There is no separate "install" command for a standalone Skill — placing a correctly
 structured directory in one of the locations above is sufficient for Claude Code to
 discover it.
-
----
 
 ## 6. Creating a SKILL.md File — Step by Step
 
@@ -146,8 +132,6 @@ discover it.
    triggers when it should not, refine the `description` field first — it is the most
    common source of triggering problems.
 
----
-
 ## 7. Frontmatter Reference
 
 The YAML frontmatter block sits between two `---` lines at the top of `SKILL.md`. Only
@@ -172,8 +156,6 @@ Claude Code extensions that control behavior when the Skill is active.
 | `context` | string | Set to `fork` to run the Skill in an isolated subagent context rather than inline in the current conversation. |
 | `agent` | string | Which subagent type to use when `context: fork` is set, for example a built-in type (`Explore`, `Plan`, `general-purpose`) or a custom subagent defined under `.claude/agents/`. |
 | `hooks` | object | Hooks scoped to this Skill's own lifecycle, for example `pre-invoke` and `post-invoke`. |
-
----
 
 ## 8. Writing an Effective Description
 
@@ -202,8 +184,6 @@ The vague examples above give Claude no concrete signal about when the Skill app
 and the first-person phrasing does not match the standard's conventions. A good
 description names concrete triggers — file types, task verbs, or phrases a user is
 likely to say — rather than describing the Skill only in the abstract.
-
----
 
 ## 9. Bundling Supporting Files
 
@@ -249,8 +229,6 @@ python ${CLAUDE_SKILL_DIR}/scripts/analyze_form.py input.pdf
 
 Files that are never referenced are never read into context — bundling large reference
 material costs nothing unless Claude actually opens it.
-
----
 
 ## 10. Practical Example
 
@@ -310,8 +288,6 @@ See [FORMS.md](FORMS.md) for the complete form-filling guide.
 See [REFERENCE.md](REFERENCE.md) for complete API documentation.
 ````
 
----
-
 ## 11. Managing Skills
 
 | Command | Purpose |
@@ -324,8 +300,6 @@ See [REFERENCE.md](REFERENCE.md) for complete API documentation.
 There is no dedicated `/skill create` command — Skills are discovered automatically
 from the filesystem locations listed in Section 5, so creating one is simply a matter of
 adding a correctly structured directory.
-
----
 
 ## 12. Best Practices
 
@@ -341,8 +315,6 @@ adding a correctly structured directory.
 - Scope automatic activation with the `paths` field when a Skill is only relevant to a
   specific part of a codebase, to avoid it being considered for unrelated work.
 
----
-
 ## 13. Common Pitfalls
 
 | Symptom | Likely cause | Fix |
@@ -353,11 +325,10 @@ adding a correctly structured directory.
 | Bundled script not found at runtime | Hardcoded relative path instead of `${CLAUDE_SKILL_DIR}` | Use the `${CLAUDE_SKILL_DIR}` placeholder so the path resolves correctly at any install scope |
 | Teammates cannot see a Skill | Skill was created under the personal (`~/.claude/skills/`) scope instead of project scope | Move the directory to `.claude/skills/` and commit it |
 
----
-
 ## 14. Related Documentation
 
 See the [official documentation links table](../README.md#official-documentation-links)
 in this repository's root README for the authoritative Anthropic sources this document
-was built from, and [Creating Agent Skills](02-creating-agent-skills.md) for how this
-same format is used beyond Claude Code.
+was built from, and [Agent Skills](02-creating-agent-skills.md) for the architecture
+underneath this file format — why it is designed the way it is, and how Claude decides
+what to load and when.

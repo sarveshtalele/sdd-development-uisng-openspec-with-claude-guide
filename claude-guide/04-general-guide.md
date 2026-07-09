@@ -3,8 +3,6 @@
 *An orientation guide to Claude Code's four extensibility mechanisms, how they relate to
 one another, and how to choose between them.*
 
----
-
 ## 1. Purpose of This Document
 
 Claude Code can be extended in four distinct ways: Skills, Subagents, Hooks, and
@@ -12,8 +10,6 @@ Plugins. Each solves a different problem, and they are frequently combined rathe
 used in isolation. This document gives a working overview of all four, with enough
 detail to get started, and points to the two dedicated documents in this folder for a
 full treatment of Skills specifically.
-
----
 
 ## 2. Overview
 
@@ -25,11 +21,9 @@ full treatment of Skills specifically.
 | Plugin | A distributable package bundling any combination of Skills, Subagents, Hooks, MCP servers, and commands | Installed once via `/plugin install`, then behaves as if its contents were configured locally | Sharing a complete toolset with a team or the wider community |
 
 Skills are covered in full detail in [Creating a SKILL.md File in Claude
-Code](01-creating-a-skill.md) and [Creating Agent Skills](02-creating-agent-skills.md).
+Code](01-creating-a-skill.md) and [Agent Skills](02-creating-agent-skills.md).
 This document summarizes Skills briefly and covers Subagents, Hooks, and Plugins in
 full.
-
----
 
 ## 3. Skills — Summary
 
@@ -39,8 +33,6 @@ instructions), optionally bundled with reference files or scripts, stored under
 full instructions only when its `description` matches the current task, keeping the
 default context window small. See the two dedicated Skill documents in this folder for
 the complete frontmatter reference, authoring guidance, and examples.
-
----
 
 ## 4. Subagents
 
@@ -109,8 +101,6 @@ how they can make the change themselves.
   directly.
 - **Session-wide** — `claude --agent code-reviewer` runs an entire session as that
   subagent, rather than delegating a single task to it.
-
----
 
 ## 5. Hooks
 
@@ -230,8 +220,6 @@ exit 0
 The `/hooks` slash command, run inside a session, lists and lets you test currently
 configured hooks.
 
----
-
 ## 6. Plugins
 
 ### 6.1 What a plugin is
@@ -307,8 +295,6 @@ For local development, a plugin directory can be loaded directly without a marke
 claude --plugin-dir ./my-plugin
 ```
 
----
-
 ## 7. Custom Slash Commands
 
 Custom slash commands are markdown files that create a `/command-name` shortcut,
@@ -335,8 +321,6 @@ an invocable command, since they additionally support bundled supporting files, 
 context injection, and forked subagent execution. Simple, single-file commands under
 `.claude/commands/` remain fully supported.
 
----
-
 ## 8. How the Four Mechanisms Relate
 
 | Question | Answer |
@@ -353,8 +337,6 @@ linter automatically after every file edit, independent of whether a review was
 requested; and a **Plugin** bundles the Skill, the Subagent, and the Hook together so
 every engineer on the team gets the same setup with a single `/plugin install`.
 
----
-
 ## 9. Best Practices
 
 - Start with a Skill for anything that is primarily instructional; reach for a
@@ -369,8 +351,6 @@ every engineer on the team gets the same setup with a single `/plugin install`.
   than one component to distribute — it is easier for a team to adopt one
   `/plugin install` than to replicate several files by hand.
 
----
-
 ## 10. Common Pitfalls
 
 | Symptom | Likely cause | Fix |
@@ -380,12 +360,11 @@ every engineer on the team gets the same setup with a single `/plugin install`.
 | A hook blocks an action unexpectedly | Script exits with code `2` (or emits a `deny` decision) in a case broader than intended | Narrow the script's matching logic and test it directly before relying on it |
 | A plugin's Skills or Subagents don't appear after installation | Plugin was not enabled, or the marketplace was not added first | Confirm with `/plugin list`, and check `/plugin marketplace list` for the source |
 
----
-
 ## 11. Related Documentation
 
-See [Creating a SKILL.md File in Claude Code](01-creating-a-skill.md) and [Creating
-Agent Skills](02-creating-agent-skills.md) for the full Skill reference, and the
+See [Creating a SKILL.md File in Claude Code](01-creating-a-skill.md) and [Agent
+Skills](02-creating-agent-skills.md) for the full Skill reference, [Creating a CLAUDE.md
+File](05-creating-claude-md.md) for the companion project-memory mechanism, and the
 [official documentation links table](../README.md#official-documentation-links) in this
 repository's root README for the authoritative Anthropic sources this document was built
 from.

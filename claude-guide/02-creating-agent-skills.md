@@ -1,280 +1,236 @@
-# Creating Agent Skills
+# Agent Skills
 
-*A reference guide for the Agent Skills standard, and for building custom Skills that
-run through the Claude Developer Platform (API) in addition to Claude Code.*
-
----
+*How the Agent Skills architecture works underneath a `SKILL.md` file, and why that
+architecture is built the way it is. This document covers the same underlying model
+Anthropic calls "Agent Skills" across its products, focused entirely on the filesystem
+approach available in Claude Code: scripts and `SKILL.md` files, with no API account,
+upload step, or key required.*
 
 ## 1. Purpose of This Document
 
-This document follows the same structure as [Creating a SKILL.md File in Claude
-Code](01-creating-a-skill.md) but addresses a broader question: what "Agent Skills" means
-as an official, portable standard, how it is used outside of Claude Code — specifically
-through the Claude API — and how to author and deploy a Skill for that context. Read this
-document alongside the Claude Code–specific guide rather than in place of it; the two
-are complementary.
+[Creating a SKILL.md File in Claude Code](01-creating-a-skill.md) explains how to
+author a Skill. This document explains the architecture underneath that authoring
+guide — why Skills are structured as directories rather than prompts, how Claude
+decides what to load and when, and what that means for how you should design a Skill's
+files and scripts. Read the two together: this document for the model, the other for
+the step-by-step mechanics.
 
----
+## 2. What Agent Skills Are
 
-## 2. What Are Agent Skills
+Agent Skills are modular capabilities that extend what Claude can do. Each Skill
+packages instructions, metadata, and optional resources — scripts, templates,
+reference material — that Claude uses automatically when relevant to the task at hand.
 
-**Agent Skills** is Anthropic's official umbrella term for the portable `SKILL.md`
-format itself — an open standard, published at `agentskills.io`, describing how to
-package instructions, metadata, and optional resources into a modular capability that
-an AI agent can load on demand.
-
-The same `SKILL.md` format is used, with product-specific extensions, across:
-
-- **Claude Code** — filesystem-based Skills, covered in
-  [Creating a SKILL.md File in Claude Code](01-creating-a-skill.md).
-- **The Claude Developer Platform (API)** — Skills uploaded via a dedicated `/v1/skills`
-  endpoint and attached to a request through the `container` parameter.
-- **Claude.ai** — Skills uploaded as a ZIP archive through account settings, used
-  automatically in the background during conversations.
-- **AWS Claude Platform and Microsoft Foundry** — Skills managed through those
-  platforms' own upload mechanisms, using the same underlying format.
-
-Anthropic's documentation consistently uses "Agent Skills" for the general, cross-product
-concept and standard, and "Skills in Claude Code" or "Skills with the Claude API" when
-referring to a specific product's implementation of it.
-
----
+Skills are reusable, filesystem-based resources that give Claude domain-specific
+expertise: workflows, context, and best practices that turn a general-purpose agent
+into a specialist for a particular kind of task. This is different from a prompt, which
+is a conversation-level instruction good for one conversation only. A Skill is written
+once, saved to disk, and is then available automatically in every relevant
+conversation going forward.
 
 ## 3. Why Agent Skills Exist
 
-The motivation is the same as for Skills in Claude Code (see Section 3 of the companion
-document): avoid permanently loading long instructions into every request, and make
-expertise reusable rather than something that has to be re-explained from scratch. The
-Agent Skills standard exists specifically to make that reusability **portable** — a
-Skill authored once, following the standard format, is not locked to a single product.
+- **Specialize Claude.** Tailor its behavior for domain-specific tasks — a particular
+  document format, a particular internal workflow, a particular set of conventions.
+- **Reduce repetition.** Write the guidance once; Claude applies it automatically
+  whenever it's relevant, instead of it being re-typed into chat each time.
+- **Compose capabilities.** Multiple Skills can combine within a single task, each
+  contributing the part of the workflow it specializes in.
 
-A secondary motivation specific to the API is enabling teams to build custom agents
-(through the Claude Agent SDK or direct API integration) that draw on the same modular
-capabilities — including Anthropic's own pre-built Skills for common document formats —
-without re-implementing that logic themselves.
+## 4. The Progressive Disclosure Architecture
 
----
+Claude operates inside a virtual machine with filesystem access. This is what makes a
+Skill possible in the first place: a Skill is not a block of text stuffed into a
+prompt, it is a directory on disk, containing instructions, executable code, and
+reference material, organized the way you might organize an onboarding guide for a new
+team member.
 
-## 4. How Agent Skills Work Across Products
+This filesystem-based design enables **progressive disclosure** — Claude loads
+information in stages, only as needed, instead of consuming context upfront. A Skill's
+content falls into three levels, each loaded at a different point:
 
-The core mechanism — a `SKILL.md` file with YAML frontmatter plus a markdown body,
-optionally bundled with supporting files, loaded via progressive disclosure — is
-identical everywhere. What differs is how a Skill is registered, shared, and invoked in
-each product:
-
-| Aspect | Claude Code | Claude API | Claude.ai |
+| Level | Content | When it loads | Token cost |
 |---|---|---|---|
-| Skill types available | Custom only | Anthropic pre-built (4 skills) plus custom | Anthropic pre-built (4 skills) plus custom |
-| How a Skill is added | Placed in a filesystem location (Section 5 of the companion doc) | Uploaded via the `/v1/skills` API endpoint | Uploaded as a ZIP through account settings |
-| Sharing scope | Personal (`~/.claude/`) or project (`.claude/`, via version control) | Workspace-wide — available to all members of the API workspace | Individual user only |
-| How a Skill is invoked | Automatic match against `description`, or `/skill-name` | Attached explicitly per request via the `container.skills` parameter | Automatic, in the background |
-| Execution environment | The local machine — full bash and network access | Claude's managed code execution container — no network access, only pre-installed packages | Claude's managed execution environment — network access varies by administrator settings |
-| Versioning | None — filesystem-based, always reflects the current file contents | Explicit versions, identified by an epoch timestamp or the literal string `latest` | None — a single uploaded version |
-| Cross-product sync | Not synced with the API or Claude.ai | Not synced with Claude Code or Claude.ai | Not synced with Claude Code or the API |
+| 1. Metadata | The `name` and `description` fields from the Skill's YAML frontmatter | Always, at session startup | Roughly 100 tokens per Skill |
+| 2. Instructions | The body of `SKILL.md` — workflows, best practices, procedural guidance | Only when the Skill is triggered by a matching request | Typically under 5,000 tokens |
+| 3. Resources and code | Bundled markdown references, executable scripts, templates, schemas | Only when a specific file is read or a specific script is run | Effectively unlimited — files not accessed cost nothing |
 
-A Skill must be uploaded or placed separately in each product where it is meant to be
-used — there is no automatic synchronization between Claude Code, the API, and Claude.ai.
+Because Level 1 is so lightweight, a project can install many Skills with no
+meaningful context penalty — Claude simply knows each one exists and roughly what it's
+for, until one is actually needed.
 
+## 5. How Claude Accesses Skill Content
+
+Claude interacts with a Skill directory the same way you would interact with files on
+your own computer: by running bash commands.
+
+- When a Skill is triggered, Claude reads `SKILL.md` from the filesystem via bash. That
+  brings the instructions into the context window for the first time.
+- If those instructions reference another file — a form-filling guide, a database
+  schema, an API reference — Claude reads that specific file via an additional bash
+  command, only if the current task actually needs it.
+- If the instructions mention an executable script, Claude runs it via bash. The
+  script's source code never enters the context window — only its output does (for
+  example, "Validation passed" or a specific error message).
+
+This is what makes progressive disclosure work in practice, and it produces three
+concrete effects worth designing around:
+
+- **On-demand file access.** A Skill can bundle dozens of reference files; if a task
+  only needs one of them, only that one is read. The rest sit on disk consuming zero
+  tokens.
+- **Efficient script execution.** Running a script that validates a form costs only the
+  tokens in its output — not the tokens of the script itself. This is substantially
+  cheaper than having Claude write equivalent logic from scratch inside the
+  conversation, and more reliable, since the same script runs the same way every time.
+- **No practical ceiling on bundled content.** Because unopened files cost nothing, a
+  Skill can include comprehensive reference documentation, large examples, or extensive
+  datasets without a context penalty for the parts that go unused on any given task.
+
+## 6. Walkthrough: Loading a Skill
+
+A concrete sequence, for a Skill named `pdf-processing`:
+
+1. **Startup.** The system prompt already includes the Skill's Level 1 metadata: *PDF
+   Processing — Extract text and tables from PDF files, fill forms, merge documents.*
+2. **User request.** "Extract the text from this PDF and summarize it."
+3. **Claude reads `SKILL.md`.** `bash: read pdf-skill/SKILL.md` brings the Level 2
+   instructions into context.
+4. **Claude decides what else it needs.** The task doesn't involve filling out a form,
+   so a bundled `FORMS.md` file is never read — it stays on disk, costing nothing.
+5. **Claude completes the task**, following the instructions now loaded in context.
+
+At every step, only what the specific request actually required entered the context
+window.
+
+## 7. Skill Structure Requirements
+
+Every Skill requires a `SKILL.md` file with YAML frontmatter naming it and describing
+it:
+
+```yaml
+---
+name: your-skill-name
+description: Brief description of what this Skill does and when to use it
 ---
 
-## 5. Where Agent Skills Live and Are Managed
+# Your Skill Name
 
-- **Claude Code**: filesystem directories under `~/.claude/skills/` or
-  `.claude/skills/`, exactly as described in Section 5 of the companion document.
-- **Claude API**: Skills exist as server-side objects, each identified by a generated ID
-  such as `skill_01AbCdEfGhIjKlMnOpQrStUv`, created and listed through the
-  `client.beta.skills` interface of the Anthropic SDK.
-- **Claude.ai**: Skills are uploaded and managed from the user's account settings; they
-  are not visible to or usable from the API or Claude Code.
+## Instructions
 
----
+Clear, step-by-step guidance for Claude to follow.
 
-## 6. Creating an Agent Skill — Step by Step (Claude API)
+## Examples
 
-1. **Author `SKILL.md` in a local directory.** Follow the same frontmatter and body
-   conventions described in Section 7 of the companion document (`name`, `description`,
-   and a markdown body); the Claude Code–only extensions listed there
-   (`allowed-tools`, `paths`, `hooks`, and similar) are not used by the API and should be
-   omitted for a Skill intended primarily for API use.
-2. **Upload the Skill directory** using the Anthropic SDK's `files_from_dir` helper:
-
-   ```python
-   from anthropic.lib import files_from_dir
-   import anthropic
-
-   client = anthropic.Anthropic()
-
-   skill = client.beta.skills.create(
-       files=files_from_dir("my_custom_skill"),
-   )
-
-   print(f"Created skill: {skill.id}")
-   print(f"Latest version: {skill.latest_version}")
-   ```
-
-3. **Enable the required beta features on the request.** Using a Skill requires the code
-   execution tool and two beta headers.
-4. **Attach the Skill to a request** through the `container.skills` parameter (Section 8).
-5. **Iterate by creating a new version**, rather than overwriting the original, whenever
-   the Skill's instructions change (Section 11).
-
----
-
-## 7. Frontmatter Reference
-
-The required frontmatter fields are identical to those used in Claude Code:
-
-| Field | Type | Purpose |
-|---|---|---|
-| `name` | string | Skill identifier. Maximum 64 characters; lowercase letters, numbers, and hyphens only. |
-| `description` | string | What the Skill does and when to use it. Maximum 1,024 characters; non-empty. Drives automatic use in Claude.ai and guides Claude's use of the Skill once attached in the API. |
-
-Claude Code–specific extensions from Section 7 of the companion document —
-`disable-model-invocation`, `allowed-tools`, `disallowed-tools`, `paths`,
-`argument-hint`, `arguments`, `shell`, `hooks`, and the CLI-only string substitutions
-such as `${CLAUDE_SESSION_ID}` — are not part of the portable API-facing standard. They
-are recognized only when the same `SKILL.md` is used inside Claude Code. This
-distinction exists because Claude Code runs locally with full filesystem and bash
-access, while the API executes Skills inside a managed, sandboxed code execution
-container without that context.
-
----
-
-## 8. Attaching a Skill to an API Request
-
-Skills are attached to a Claude API request using the `container` parameter, which
-requires the code execution tool to be enabled and two beta headers.
-
-```python
-import anthropic
-
-client = anthropic.Anthropic()
-
-response = client.beta.messages.create(
-    model="claude-opus-4-8",
-    max_tokens=4096,
-    betas=["code-execution-2025-08-25", "skills-2025-10-02"],
-    container={
-        "skills": [
-            {"type": "anthropic", "skill_id": "pptx", "version": "latest"}
-        ]
-    },
-    tools=[{"type": "code_execution_20250825", "name": "code_execution"}],
-    messages=[
-        {"role": "user", "content": "Create a presentation about renewable energy"}
-    ],
-)
+Concrete examples of using this Skill.
 ```
 
-Key constraints:
+`name` and `description` are the only required fields, and both have exact
+constraints:
 
-- Up to **8 Skills** may be attached to a single request.
-- `type` is either `"anthropic"` (a pre-built Skill) or `"custom"` (one you uploaded).
-- `version` accepts a specific version identifier or the literal string `"latest"`.
-- Both beta headers — `skills-2025-10-02` and a code execution beta such as
-  `code-execution-2025-08-25` — must be present, and the `code_execution` tool must be
-  included in `tools`.
-
----
-
-## 9. Pre-built Agent Skills
-
-Anthropic provides four pre-built Skills, available consistently across the API,
-Claude.ai, and other managed platforms, identified by short skill IDs of type
-`"anthropic"`:
-
-| Skill ID | Purpose |
+| Field | Constraint |
 |---|---|
-| `pptx` | Create and edit presentations, analyze slide content |
-| `xlsx` | Create spreadsheets, analyze data, generate charts and reports |
-| `docx` | Create and edit documents, format text |
-| `pdf` | Generate formatted PDF documents and reports |
+| `name` | Maximum 64 characters. Only lowercase letters, numbers, and hyphens. No XML tags. Cannot use the reserved words "anthropic" or "claude". |
+| `description` | Must be non-empty. Maximum 1,024 characters. No XML tags. |
 
-These require no upload step — reference the `skill_id` directly in `container.skills`
-as shown in Section 8.
+The `description` should state both what the Skill does and when Claude should use it
+— this is the field Claude compares against a request to decide whether to trigger the
+Skill. See [Creating a SKILL.md File in Claude Code](01-creating-a-skill.md) for the
+complete frontmatter reference, including the Claude Code–specific fields beyond these
+two required ones, and for guidance on writing an effective `description`.
 
----
+## 8. The Runtime Environment in Claude Code
 
-## 10. Practical Example: Custom Skill With Versioning
+The exact runtime a Skill's scripts execute in depends on where the Skill runs. In
+Claude Code specifically:
 
-Uploading a new version of an existing custom Skill, then using that specific version
-in a request:
+- **Full network access.** A script has the same network access as any other program
+  running on your machine — there is no sandboxing beyond what your own system
+  provides.
+- **Global package installation is discouraged.** Install any dependency a script needs
+  locally, scoped to the project, rather than globally — a Skill should not alter the
+  broader state of the machine it runs on.
 
-```python
-from anthropic.lib import files_from_dir
+Plan a Skill's scripts to work within these constraints, and treat network calls made
+by a script with the same scrutiny you would apply to any other code running with your
+own machine's permissions.
 
-# Create a new version from an updated local directory
-new_version = client.beta.skills.versions.create(
-    skill_id="skill_01AbCdEfGhIjKlMnOpQrStUv",
-    files=files_from_dir("/path/to/updated_skill"),
-)
+## 9. Security Considerations
 
-response = client.beta.messages.create(
-    model="claude-opus-4-8",
-    max_tokens=16000,
-    betas=["skills-2025-10-02", "code-execution-2025-08-25"],
-    container={
-        "skills": [
-            {
-                "type": "custom",
-                "skill_id": "skill_01AbCdEfGhIjKlMnOpQrStUv",
-                "version": new_version.version,
-            }
-        ]
-    },
-    tools=[{"type": "code_execution_20250825", "name": "code_execution"}],
-    messages=[{"role": "user", "content": "Run the analysis using the updated skill."}],
-)
-```
+Use Skills only from trusted sources — ones you wrote yourself, or ones you have
+personally audited. A Skill gives Claude new capabilities through instructions and
+code; that same mechanism means a malicious Skill can direct Claude to invoke tools or
+run code in ways that don't match what the Skill claims to do.
 
-Pinning a specific `version` rather than `"latest"` is the recommended approach for
-production workloads, so that an in-progress update to the Skill's instructions does not
-change behavior mid-rollout.
+If you must use a Skill from an untrusted or unknown source, audit it thoroughly before
+running it at all:
 
----
+- **Audit every bundled file.** Read `SKILL.md`, every script, and every other bundled
+  resource. Look for anything that doesn't match the Skill's stated purpose — an
+  unexpected network call, an unusual file access pattern, an operation with no
+  apparent connection to what the Skill claims to do.
+- **Treat external data sources as risky.** A Skill that fetches content from an
+  external URL is exposed to whatever that URL returns — including content designed to
+  look like an instruction. Even a Skill that was trustworthy when written can become
+  risky later if an external dependency it relies on changes.
+- **Tool misuse is the core risk.** A malicious Skill's danger comes from directing
+  Claude to use its own available tools — file operations, bash, code execution — in a
+  harmful way, not from some separate exploit mechanism.
+- **Data exposure is a real consequence.** A Skill with access to sensitive data could,
+  deliberately or through a compromised dependency, leak that data to an external
+  system.
 
-## 11. Managing Agent Skills (API)
+Treat installing a Skill the way you would treat installing any other piece of
+software on your machine: only from a source you trust, and with extra caution before
+giving one access to sensitive data or production systems.
 
-| Operation | Method |
+## 10. Sharing Scope in Claude Code
+
+A Skill's location determines who else can use it:
+
+| Location | Scope |
 |---|---|
-| List all Skills (Anthropic and custom) | `client.beta.skills.list()` |
-| List only custom Skills | `client.beta.skills.list(source="custom")` |
-| Create a custom Skill | `client.beta.skills.create(files=files_from_dir(...))` |
-| Create a new version of an existing Skill | `client.beta.skills.versions.create(skill_id=..., files=...)` |
-| Use a specific version | Set `"version"` in `container.skills` to the version identifier returned above, instead of `"latest"` |
+| `~/.claude/skills/` | Personal — available to you, across every project you work in |
+| `.claude/skills/` (project root) | Project — shared with anyone who clones the repository, via version control |
+| Bundled inside a Claude Code Plugin | Distributed to anyone who installs the plugin |
 
----
+See Section 5 of [Creating a SKILL.md File in Claude Code](01-creating-a-skill.md) for
+the full discovery rules, including nested directories and precedence.
+
+## 11. Relationship to Other Surfaces
+
+Agent Skills, as an architecture, is not unique to Claude Code — the same `SKILL.md`
+format and progressive-disclosure model is also used by the Claude API and by
+claude.ai, each with its own upload mechanism for getting a Skill onto that surface.
+This document deliberately covers only the Claude Code path: a Skill placed directly on
+your filesystem, discovered automatically, with no account upload or API key required.
+A Skill written this way is not automatically available on those other surfaces, and a
+Skill uploaded to one of those other surfaces is not automatically available in Claude
+Code — each is a separate deployment of the same underlying idea.
 
 ## 12. Best Practices
 
-- Keep a Skill's `SKILL.md` free of Claude Code–only frontmatter fields if it needs to
-  work identically across Claude Code and the API — author the portable subset (`name`,
-  `description`, markdown body) and layer Claude Code extensions on separately if truly
-  needed only there.
-- Pin explicit versions in production API requests rather than relying on `"latest"`.
-- Keep the number of Skills attached to a single request as small as the task actually
-  requires; each attached Skill's metadata still occupies context.
-- Treat Skill uploads to Claude.ai, the API, and Claude Code as three independent
-  deployments of the same source directory — update all three deliberately rather than
-  assuming a change in one propagates to the others.
-
----
+- Keep `SKILL.md` itself focused on procedure; move detailed reference material into
+  separate bundled files so it only loads when actually needed (Section 4).
+- Prefer a script over inline instructions for any step that is deterministic — a
+  script's output costs far fewer tokens than the equivalent reasoning written out in
+  the conversation, and its behavior doesn't vary between runs.
+- Install script dependencies locally to the project, never globally, so a Skill never
+  alters the state of the machine it runs on.
+- Audit a Skill's full contents — not just `SKILL.md` — before using one you didn't
+  write yourself.
 
 ## 13. Common Pitfalls
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| API request fails referencing a Skill | Missing one of the two required beta headers, or the `code_execution` tool is not included in `tools` | Confirm both `skills-2025-10-02` and a code execution beta are present, and `code_execution` is listed under `tools` |
-| Skill behaves differently in Claude Code than through the API | The `SKILL.md` relies on Claude Code–only fields (`allowed-tools`, `paths`, shell substitutions) that the API does not interpret | Separate the portable instructions from the Claude Code–specific configuration |
-| Updated Skill instructions have no effect on API responses | Request is still pinned to an older `version`, or `"latest"` was cached before the new version was created | Confirm the version identifier passed in `container.skills` matches the newly created version |
-| Teammates cannot see a Skill uploaded to the API | Skills uploaded to Claude.ai are individual to the uploading user; only API-uploaded Skills are workspace-wide | Upload the Skill through the API rather than the Claude.ai UI if team-wide access is required |
-
----
+| Context fills up even though a Skill isn't being used | Instructions or reference material were written directly into a heavily loaded file instead of a separate bundled file | Split rarely needed material into its own file, referenced only when relevant (Section 4) |
+| A script's logic seems to silently vanish from context | This is expected — script source code is never loaded, only its output | Rely on the script's printed output for verification, not on Claude "seeing" the code |
+| A Skill behaves unpredictably or performs an unexpected action | The Skill (or one of its bundled scripts) came from an unaudited source | Remove it, and only reinstall after a full read-through of every bundled file (Section 9) |
 
 ## 14. Related Documentation
 
-See [Creating a SKILL.md File in Claude Code](01-creating-a-skill.md) for the
-Claude Code–specific mechanism, and the
-[official documentation links table](../README.md#official-documentation-links) in this
-repository's root README for the authoritative Anthropic sources this document was built
-from.
+See [Creating a SKILL.md File in Claude Code](01-creating-a-skill.md) for the complete
+authoring guide, and the [official documentation links table](../README.md#official-documentation-links)
+in this repository's root README for the authoritative Anthropic sources this document
+was built from.

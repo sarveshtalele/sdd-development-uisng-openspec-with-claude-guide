@@ -4,8 +4,6 @@
 focused entirely on using it through Claude Code's `/opsx` slash commands. Applies to
 any project — no dependency on any specific repository or prior setup.*
 
----
-
 ## 1. What Is OpenSpec
 
 OpenSpec is a Spec-Driven Development (SDD) tool. Before Claude writes any code, work is
@@ -20,8 +18,6 @@ broken into reviewable artifacts:
 
 Once every task is implemented and genuinely verified, the change is **archived** — its
 specs become permanent, durable documentation under `openspec/specs/`.
-
----
 
 ## 2. Setup
 
@@ -44,9 +40,6 @@ After initialisation for project directory use claude to start SDD development.
 ``` 
 claude
 ```
-
-
----
 
 ## 3. `/opsx` Commands
 
@@ -75,10 +68,7 @@ claude
 Both tables reflect the same `openspec` package version (v1.5.0); only the profile you
 pick determines which set is installed.
 
----
-
 ## 4. Typical Loop
-
 
 - **/opsx:explore** - "How does the current styling system work"
 - **/opsx:propose** - "Add dark mode support"
@@ -87,12 +77,9 @@ pick determines which set is installed.
    ... implement runs, verify it actually works ...
 - **/opsx:archive**
 
-
 That's the entire day-to-day workflow. Everything — file creation, dependency ordering
 between proposal/design/specs/tasks, validation — happens automatically inside Claude
 Code when you run these commands; there is nothing else to invoke manually.
-
----
 
 ## 5. Using This for Reverse Engineering & Existing/Legacy Codebases
 
@@ -101,10 +88,8 @@ Code when you run these commands; there is nothing else to invoke manually.
 Works standalone in any project, including one you didn't write. No files are created,
 so there's no risk in exploring freely:
 
-
 - **/opsx:explore:** "map out how this codebase currently handles authentication"
 - **/opsx:explore:** "trace how a request flows through the middleware before we add rate limiting"
-
 
 Per OpenSpec's own guidance for existing codebases: *"You do not document your whole
 codebase to start. You write specs only for what you're about to change."* — don't try
@@ -157,8 +142,6 @@ your-project/
 Works the same with no custom analyzer at all — skip straight to `/opsx:explore` for
 manual investigation. OpenSpec has no opinion on how you arrived at the context you put
 in `config.yaml`.
-
----
 
 ## 6. Sample Project — Commands to Execute, Start to Finish (using expanded profile)
 
@@ -279,8 +262,6 @@ living documentation from this point forward.
 Not needed for this single-change example — included for completeness. Archives several
 completed, verified changes in one pass instead of running `/opsx:archive` per change.
 
----
-
 ## 6b. Sample Project — Commands to Execute, Start to Finish (using core profile)
 
 A second, complete run of the workflow — this time using only the `core` profile (Section
@@ -360,8 +341,6 @@ That is the complete loop: five commands (`/opsx:explore`, `/opsx:propose`,
 `/opsx:apply`, `/opsx:sync`, `/opsx:archive`), matching Section 4's "Typical Loop" and
 Section 3a's core command table exactly — no interactive profile picker, and nothing
 beyond what `openspec init --tools claude` gives you out of the box.
-
----
 
 ## 7. Quick Reference
 
