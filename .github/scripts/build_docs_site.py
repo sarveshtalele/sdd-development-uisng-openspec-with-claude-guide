@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Builds a static HTML site from every Markdown file in the repository.
 
-Walks the repo, converts each .md file to a styled HTML page (Apple-glass
-aesthetic, shared sidebar navigation), rewrites internal .md links to .html,
-and generates a browsable index.html for every directory. Output goes to
-_site/, ready to be uploaded as a GitHub Pages artifact.
+Walks the repo, converts each .md file to a styled HTML page (product-docs
+layout: sticky top bar, collapsible sidebar navigation, glassmorphic panels),
+rewrites internal .md links to .html, and generates a browsable index.html
+for every directory. Output goes to _site/, ready to be uploaded as a
+GitHub Pages artifact.
 """
 
 import os
@@ -29,6 +30,10 @@ EXCLUDE_DIR_SUFFIXES = (".egg-info",)
 SIDEBAR_EXCLUDE_COMPONENTS = {"archive", "changes", ".claude", "openspec", "specs"}
 
 SITE_TITLE = "Spec-Driven Development with OpenSpec and Claude Code"
+SITE_SHORT_TITLE = "OpenSpec × Claude Code"
+GITHUB_REPO_URL = "https://github.com/sarveshtalele/sdd-development-using-openspec-with-claude-guide"
+GITHUB_BLOB_BASE = GITHUB_REPO_URL + "/blob/main/"
+GITHUB_TREE_BASE = GITHUB_REPO_URL + "/tree/main/"
 
 GROUP_TITLES = {
     "": "Home",
@@ -119,10 +124,10 @@ def is_sidebar_eligible(rel_path: Path) -> bool:
     return not any(part in SIDEBAR_EXCLUDE_COMPONENTS for part in rel_path.parts[:-1])
 
 
-def build_sidebar_model(pages: list[dict]) -> "OrderedDictType":
+def build_sidebar_model(pages: list[dict]):
     from collections import OrderedDict
 
-    groups: "OrderedDictType" = OrderedDict()
+    groups: "OrderedDict" = OrderedDict()
     root_pages = [p for p in pages if is_sidebar_eligible(p["rel"]) and len(p["rel"].parts) == 1]
     groups[""] = root_pages
 
@@ -144,16 +149,44 @@ def relhref(from_file_out: Path, to_file_out: Path) -> str:
     return os.path.relpath(to_file_out, start=from_file_out.parent).replace(os.sep, "/")
 
 
+CHEVRON_SVG = (
+    '<svg class="chevron" viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">'
+    '<path d="M5 3l6 5-6 5" fill="none" stroke="currentColor" stroke-width="1.8" '
+    'stroke-linecap="round" stroke-linejoin="round"/></svg>'
+)
+
+
 def render_sidebar(current_out: Path, groups: dict) -> str:
     parts = ['<nav class="sidebar-nav">']
+
+    root_pages = groups.get("", [])
+    if root_pages:
+        parts.append('<div class="nav-pinned">')
+        for page in root_pages:
+            href = relhref(current_out, page["out"])
+            active = " active" if page["out"] == current_out else ""
+            parts.append(f'<a class="nav-link nav-link-pinned{active}" href="{href}">{page["title"]}</a>')
+        parts.append("</div>")
+
     for top, children in groups.items():
+        if top == "":
+            continue
         title = group_title_for(top)
-        parts.append(f'<div class="nav-group"><div class="nav-group-title">{title}</div><ul>')
+        contains_active = any(page["out"] == current_out for page in children)
+        expanded_class = " expanded" if contains_active else ""
+        aria = "true" if contains_active else "false"
+        parts.append(f'<div class="nav-group{expanded_class}" data-group="{top}">')
+        parts.append(
+            f'<button type="button" class="nav-group-toggle" aria-expanded="{aria}">'
+            f'<span class="nav-group-title">{title}</span>{CHEVRON_SVG}</button>'
+        )
+        parts.append('<ul class="nav-group-list">')
         for page in children:
             href = relhref(current_out, page["out"])
             active = " active" if page["out"] == current_out else ""
             parts.append(f'<li><a class="nav-link{active}" href="{href}">{page["title"]}</a></li>')
         parts.append("</ul></div>")
+
     parts.append("</nav>")
     return "\n".join(parts)
 
@@ -185,17 +218,32 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
 <div class="bg-blob blob-2"></div>
 <div class="bg-blob blob-3"></div>
 
-<button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">Menu</button>
+<header class="topbar glass">
+  <div class="topbar-inner">
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
+      <span></span><span></span><span></span>
+    </button>
+    <a class="topbar-brand" href="{home_href}">
+      <span class="brand-mark">SD</span>
+      <span class="brand-text">{site_short_title}</span>
+    </a>
+    <a class="topbar-github" href="{github_repo_url}" target="_blank" rel="noopener">
+      View on GitHub
+    </a>
+  </div>
+</header>
 
 <div class="layout">
   <aside class="sidebar glass" id="sidebar">
-    <a class="brand" href="{home_href}">{site_title}</a>
     {sidebar_html}
   </aside>
   <main class="content-wrap">
     <div class="content glass">
       {breadcrumbs_html}
       {body_html}
+      <div class="page-footer">
+        <a class="edit-link" href="{edit_url}" target="_blank" rel="noopener">Edit this page on GitHub &#8599;</a>
+      </div>
     </div>
   </main>
 </div>
@@ -208,24 +256,28 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
 
 
 def render_page(md_path: Path, page_title: str, sidebar_html: str, breadcrumbs_html: str,
-                 css_href: str, js_href: str, home_href: str) -> str:
+                 css_href: str, js_href: str, home_href: str, edit_url: str) -> str:
     raw = md_path.read_text(encoding="utf-8")
     raw = rewrite_markdown_links(raw)
     body_html = markdown.markdown(raw, extensions=MD_EXTENSIONS)
     return PAGE_TEMPLATE.format(
         page_title=page_title,
         site_title=SITE_TITLE,
+        site_short_title=SITE_SHORT_TITLE,
+        github_repo_url=GITHUB_REPO_URL,
         css_href=css_href,
         js_href=js_href,
         home_href=home_href,
         sidebar_html=sidebar_html,
         breadcrumbs_html=breadcrumbs_html,
         body_html=body_html,
+        edit_url=edit_url,
     )
 
 
 def render_dir_listing(dir_out: Path, dir_rel: Path, entries: list[dict], subdirs: list[str],
-                        sidebar_html: str, css_href: str, js_href: str, home_href: str) -> str:
+                        sidebar_html: str, css_href: str, js_href: str, home_href: str,
+                        edit_url: str) -> str:
     title = dir_rel.name if dir_rel.parts else "Home"
     items = []
     for name in sorted(subdirs):
@@ -240,12 +292,15 @@ def render_dir_listing(dir_out: Path, dir_rel: Path, entries: list[dict], subdir
     return PAGE_TEMPLATE.format(
         page_title=title,
         site_title=SITE_TITLE,
+        site_short_title=SITE_SHORT_TITLE,
+        github_repo_url=GITHUB_REPO_URL,
         css_href=css_href,
         js_href=js_href,
         home_href=home_href,
         sidebar_html=sidebar_html,
         breadcrumbs_html=breadcrumbs_html,
         body_html=body_html,
+        edit_url=edit_url,
     )
 
 
@@ -280,8 +335,9 @@ def main() -> None:
         home_href = relhref(out, OUTPUT_DIR / "index.html")
         sidebar_html = render_sidebar(out, sidebar_groups)
         breadcrumbs_html = render_breadcrumbs(out, page["rel"])
+        edit_url = GITHUB_BLOB_BASE + str(page["rel"]).replace(os.sep, "/")
         html = render_page(page["md"], page["title"], sidebar_html, breadcrumbs_html,
-                            css_href, js_href, home_href)
+                            css_href, js_href, home_href, edit_url)
         out.write_text(html, encoding="utf-8")
 
         if page["rel"].name == "README.md":
@@ -312,7 +368,9 @@ def main() -> None:
         js_href = relhref(index_file, assets_dir / "app.js")
         home_href = relhref(index_file, OUTPUT_DIR / "index.html")
         sidebar_html = render_sidebar(index_file, sidebar_groups)
-        html = render_dir_listing(d, dir_rel, entries, subdirs, sidebar_html, css_href, js_href, home_href)
+        edit_url = GITHUB_TREE_BASE + str(dir_rel).replace(os.sep, "/") if dir_rel.parts else GITHUB_REPO_URL
+        html = render_dir_listing(d, dir_rel, entries, subdirs, sidebar_html, css_href, js_href,
+                                   home_href, edit_url)
         index_file.write_text(html, encoding="utf-8")
 
     print(f"Built {len(pages)} pages into {OUTPUT_DIR}")
@@ -324,15 +382,20 @@ CSS = """
   --blue-accent: #2f8fe0;
   --blue-soft: #cfe6fb;
   --cream: #fbf4e8;
-  --cream-soft: #fdf9f0;
+  --ink: #1b2430;
+  --ink-soft: #57646f;
+  --ink-faint: #8a95a1;
   --white: #ffffff;
-  --ink: #1c2733;
-  --ink-soft: #51606f;
-  --glass-bg: rgba(255, 255, 255, 0.52);
-  --glass-border: rgba(255, 255, 255, 0.65);
-  --glass-shadow: 0 8px 40px rgba(24, 66, 115, 0.14);
-  --radius-lg: 22px;
-  --radius-md: 14px;
+  --grey-bg: #f4f5f7;
+  --grey-border: #e3e6ea;
+  --grey-shadow: 0 3px 14px rgba(30, 40, 55, 0.09);
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.7);
+  --glass-shadow: 0 8px 36px rgba(24, 66, 115, 0.12);
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --topbar-h: 60px;
 }
 
 * { box-sizing: border-box; }
@@ -341,30 +404,37 @@ html, body {
   margin: 0;
   padding: 0;
   min-height: 100%;
+  scroll-behavior: smooth;
 }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
     "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: var(--ink);
-  background: linear-gradient(160deg, #eaf3fc 0%, #f7f2e7 45%, #fdf7ec 100%);
+  background: linear-gradient(160deg, #eaf3fc 0%, #f6f2e8 45%, #fdf8ef 100%);
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
   line-height: 1.65;
+  animation: fadein 0.35s ease;
+}
+
+@keyframes fadein {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .bg-blob {
   position: fixed;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.55;
+  filter: blur(90px);
+  opacity: 0.45;
   z-index: 0;
   pointer-events: none;
 }
-.blob-1 { width: 520px; height: 520px; top: -160px; left: -120px; background: radial-gradient(circle, #bcdcfb, transparent 70%); }
-.blob-2 { width: 460px; height: 460px; bottom: -140px; right: -100px; background: radial-gradient(circle, #f7e6c4, transparent 70%); }
-.blob-3 { width: 360px; height: 360px; top: 40%; right: 10%; background: radial-gradient(circle, #d9c9fb, transparent 70%); opacity: 0.35; }
+.blob-1 { width: 520px; height: 520px; top: -180px; left: -140px; background: radial-gradient(circle, #bcdcfb, transparent 70%); }
+.blob-2 { width: 460px; height: 460px; bottom: -160px; right: -120px; background: radial-gradient(circle, #f3e2bd, transparent 70%); }
+.blob-3 { width: 340px; height: 340px; top: 45%; right: 8%; background: radial-gradient(circle, #d9c9fb, transparent 70%); opacity: 0.28; }
 
 .glass {
   background: var(--glass-bg);
@@ -372,55 +442,135 @@ body {
   -webkit-backdrop-filter: blur(22px) saturate(180%);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
-  border-radius: var(--radius-lg);
 }
+
+/* Top bar */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+}
+.topbar-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px;
+}
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--blue-accent), var(--blue-deep));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  box-shadow: 0 3px 10px rgba(10, 95, 180, 0.35);
+}
+.brand-text { white-space: nowrap; }
+.topbar-github {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--blue-deep);
+  text-decoration: none;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(10, 95, 180, 0.25);
+  background: rgba(255, 255, 255, 0.5);
+  transition: background 0.15s ease, transform 0.15s ease;
+  white-space: nowrap;
+}
+.topbar-github:hover { background: rgba(47, 143, 224, 0.14); transform: translateY(-1px); }
 
 .layout {
   position: relative;
   z-index: 1;
   display: flex;
-  max-width: 1280px;
+  max-width: 1320px;
   margin: 0 auto;
-  padding: 32px 24px 80px;
+  padding: 26px 24px 80px;
   gap: 28px;
   align-items: flex-start;
 }
 
 .sidebar {
-  flex: 0 0 264px;
+  flex: 0 0 268px;
   position: sticky;
-  top: 24px;
-  max-height: calc(100vh - 48px);
+  top: calc(var(--topbar-h) + 18px);
+  max-height: calc(100vh - var(--topbar-h) - 36px);
   overflow-y: auto;
-  padding: 22px 18px;
+  padding: 18px 14px;
+  border-radius: var(--radius-lg);
 }
 
-.brand {
-  display: block;
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: -0.01em;
-  color: var(--blue-deep);
-  text-decoration: none;
-  margin-bottom: 18px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid rgba(10, 95, 180, 0.14);
+.nav-pinned {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(10, 95, 180, 0.12);
 }
+.nav-link-pinned { font-weight: 700; }
 
-.nav-group { margin-bottom: 14px; }
-.nav-group-title {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.nav-group { margin-bottom: 4px; }
+.nav-group-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 9px 8px;
+  border-radius: var(--radius-sm);
   color: var(--ink-soft);
-  margin: 10px 0 6px 6px;
+  transition: background 0.15s ease;
 }
+.nav-group-toggle:hover { background: rgba(47, 143, 224, 0.08); }
+.nav-group-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.chevron { transition: transform 0.2s ease; flex-shrink: 0; }
+.nav-group.expanded .chevron { transform: rotate(90deg); }
+
+.nav-group-list {
+  list-style: none;
+  margin: 0;
+  padding: 2px 0 4px 4px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.28s ease;
+}
+.nav-group.expanded .nav-group-list { max-height: 800px; }
+
 .sidebar-nav ul { list-style: none; margin: 0; padding: 0; }
 .nav-link {
   display: block;
   padding: 7px 10px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   color: var(--ink);
   text-decoration: none;
   font-size: 13.5px;
@@ -435,14 +585,15 @@ body {
   background: linear-gradient(135deg, var(--blue-accent), var(--blue-deep));
   color: var(--white);
   font-weight: 600;
+  box-shadow: 0 3px 10px rgba(10, 95, 180, 0.28);
 }
 
 .content-wrap { flex: 1 1 auto; min-width: 0; }
-.content { padding: 44px 52px; }
+.content { padding: 42px 52px 30px; border-radius: var(--radius-lg); }
 
 .breadcrumbs {
   font-size: 12.5px;
-  color: var(--ink-soft);
+  color: var(--ink-faint);
   margin-bottom: 22px;
 }
 .breadcrumbs a { color: var(--blue-accent); text-decoration: none; }
@@ -462,9 +613,9 @@ body {
   background-clip: text;
   color: transparent;
 }
-.content h2 { font-size: 23px; margin: 40px 0 14px; padding-top: 6px; border-top: 1px solid rgba(10, 95, 180, 0.1); }
+.content h2 { font-size: 22px; margin: 38px 0 14px; padding-top: 6px; border-top: 1px solid rgba(10, 95, 180, 0.1); }
 .content h2:first-of-type { border-top: none; padding-top: 0; }
-.content h3 { font-size: 18px; margin: 28px 0 10px; color: var(--blue-deep); }
+.content h3 { font-size: 17.5px; margin: 26px 0 10px; color: var(--blue-deep); }
 .content h4 { font-size: 15px; margin: 20px 0 8px; }
 
 .content p, .content li { color: var(--ink); font-size: 15px; }
@@ -474,27 +625,31 @@ body {
 .content a { color: var(--blue-deep); text-decoration: none; border-bottom: 1px solid rgba(10, 95, 180, 0.28); }
 .content a:hover { color: var(--blue-accent); border-bottom-color: var(--blue-accent); }
 
+/* Inline code: neutral grey chip */
 .content code {
   font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  background: rgba(10, 95, 180, 0.08);
-  color: #0a4d90;
+  background: var(--grey-bg);
+  border: 1px solid var(--grey-border);
+  color: #3a4149;
   padding: 2px 6px;
   border-radius: 6px;
   font-size: 13px;
 }
 
+/* Code blocks: light grey panel with a soft drop shadow, not a dark theme */
 .content pre {
-  background: rgba(24, 32, 44, 0.92);
-  backdrop-filter: blur(10px);
-  color: #eef3f8;
+  background: var(--grey-bg);
+  border: 1px solid var(--grey-border);
+  color: #2b323c;
   border-radius: var(--radius-md);
   padding: 18px 20px;
   overflow-x: auto;
-  box-shadow: 0 6px 24px rgba(20, 30, 45, 0.25);
+  box-shadow: var(--grey-shadow);
   margin: 18px 0;
 }
 .content pre code {
   background: transparent;
+  border: none;
   color: inherit;
   padding: 0;
   font-size: 13px;
@@ -506,11 +661,11 @@ body {
   margin: 18px 0;
   border-radius: var(--radius-md);
   overflow: hidden;
-  box-shadow: 0 4px 18px rgba(24, 66, 115, 0.08);
+  box-shadow: var(--grey-shadow);
 }
 .content th, .content td {
   padding: 10px 14px;
-  border-bottom: 1px solid rgba(10, 95, 180, 0.1);
+  border-bottom: 1px solid var(--grey-border);
   text-align: left;
   font-size: 13.5px;
   vertical-align: top;
@@ -523,7 +678,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
-.content tr:nth-child(even) td { background: rgba(255, 255, 255, 0.4); }
+.content tr:nth-child(even) td { background: rgba(255, 255, 255, 0.5); }
 
 .content blockquote {
   margin: 18px 0;
@@ -542,47 +697,69 @@ body {
   display: inline-block;
   padding: 8px 14px;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px solid var(--glass-border);
+  background: var(--white);
+  border: 1px solid var(--grey-border);
   color: var(--blue-deep);
   text-decoration: none;
   font-size: 14px;
+  box-shadow: var(--grey-shadow);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-.dir-listing a:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(24, 66, 115, 0.14); }
+.dir-listing a:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(24, 66, 115, 0.15); }
+
+.page-footer {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(10, 95, 180, 0.1);
+}
+.edit-link {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  text-decoration: none;
+  border-bottom: none;
+}
+.edit-link:hover { color: var(--blue-deep); }
 
 .nav-toggle {
   display: none;
-  position: fixed;
-  top: 18px;
-  left: 18px;
-  z-index: 10;
-  padding: 10px 16px;
-  border-radius: 999px;
-  border: 1px solid var(--glass-border);
-  background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  color: var(--blue-deep);
-  font-weight: 600;
-  font-size: 13px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(10, 95, 180, 0.2);
+  background: rgba(255, 255, 255, 0.5);
   cursor: pointer;
+  padding: 0;
+}
+.nav-toggle span {
+  display: block;
+  height: 2px;
+  margin: 0 7px;
+  background: var(--blue-deep);
+  border-radius: 2px;
 }
 
 @media (max-width: 860px) {
-  .layout { flex-direction: column; padding: 84px 16px 60px; }
+  .topbar-inner { padding: 0 14px; }
+  .brand-text { display: none; }
+  .layout { flex-direction: column; padding: 18px 14px 60px; }
   .sidebar {
     position: fixed;
-    left: 16px;
-    right: 16px;
-    top: 68px;
-    z-index: 9;
-    max-height: 70vh;
+    left: 14px;
+    right: 14px;
+    top: calc(var(--topbar-h) + 10px);
+    z-index: 15;
+    max-height: 72vh;
     display: none;
   }
   .sidebar.open { display: block; }
-  .nav-toggle { display: block; }
-  .content { padding: 28px 22px; }
-  .content h1 { font-size: 26px; }
+  .nav-toggle { display: flex; }
+  .content { padding: 26px 20px; }
+  .content h1 { font-size: 25px; }
+  .topbar-github { padding: 6px 10px; font-size: 12px; }
 }
 """
 
@@ -593,6 +770,7 @@ document.addEventListener('DOMContentLoaded', function () {
       hljs.highlightElement(block);
     });
   }
+
   var toggle = document.getElementById('navToggle');
   var sidebar = document.getElementById('sidebar');
   if (toggle && sidebar) {
@@ -600,6 +778,30 @@ document.addEventListener('DOMContentLoaded', function () {
       sidebar.classList.toggle('open');
     });
   }
+
+  var groups = document.querySelectorAll('.nav-group');
+  groups.forEach(function (group) {
+    var key = 'navgroup:' + group.dataset.group;
+    var stored = null;
+    try { stored = localStorage.getItem(key); } catch (e) {}
+    var hasActive = group.querySelector('.nav-link.active') !== null;
+    if (hasActive) {
+      group.classList.add('expanded');
+    } else if (stored === '1') {
+      group.classList.add('expanded');
+    } else if (stored === '0') {
+      group.classList.remove('expanded');
+    }
+    var btn = group.querySelector('.nav-group-toggle');
+    if (btn) {
+      btn.setAttribute('aria-expanded', group.classList.contains('expanded') ? 'true' : 'false');
+      btn.addEventListener('click', function () {
+        var expanded = group.classList.toggle('expanded');
+        btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        try { localStorage.setItem(key, expanded ? '1' : '0'); } catch (e) {}
+      });
+    }
+  });
 });
 """
 
