@@ -243,12 +243,14 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
       <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
     </button>
     <a class="topbar-github" href="{github_repo_url}" target="_blank" rel="noopener">
-      View on GitHub
+      <svg class="icon-github" viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      <span class="topbar-github-text">View on GitHub</span>
     </a>
   </div>
 </header>
 
 <div class="layout">
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
   <aside class="sidebar glass" id="sidebar">
     {sidebar_html}
   </aside>
@@ -270,11 +272,22 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
 """
 
 
+TABLE_RE = re.compile(r"<table>.*?</table>", re.DOTALL)
+
+
+def wrap_tables_for_scroll(html: str) -> str:
+    """Wraps every rendered <table> in a scrollable div so a wide table (many
+    columns, long cell text) scrolls horizontally on a narrow screen instead
+    of overflowing the page or getting squeezed illegible."""
+    return TABLE_RE.sub(lambda m: f'<div class="table-scroll">{m.group(0)}</div>', html)
+
+
 def render_page(md_path: Path, page_title: str, sidebar_html: str, breadcrumbs_html: str,
                  css_href: str, js_href: str, home_href: str, edit_url: str) -> str:
     raw = md_path.read_text(encoding="utf-8")
     raw = rewrite_markdown_links(raw)
     body_html = markdown.markdown(raw, extensions=MD_EXTENSIONS)
+    body_html = wrap_tables_for_scroll(body_html)
     return PAGE_TEMPLATE.format(
         page_title=page_title,
         site_title=SITE_TITLE,
@@ -570,6 +583,9 @@ body {
 [data-theme="dark"] .theme-toggle .icon-moon { display: inline-block; }
 
 .topbar-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-size: 13px;
   font-weight: 600;
   color: var(--blue-deep);
@@ -580,6 +596,7 @@ body {
   background: var(--surface-soft);
   transition: background 0.15s ease, transform 0.15s ease;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .topbar-github:hover { background: var(--tint-strong); transform: translateY(-1px); }
 
@@ -698,14 +715,16 @@ body {
 .content h3 { font-size: 17.5px; margin: 26px 0 10px; color: var(--blue-deep); }
 .content h4 { font-size: 15px; margin: 20px 0 8px; }
 
-.content p, .content li { color: var(--ink); font-size: 15px; }
+.content p, .content li { color: var(--ink); font-size: 15px; overflow-wrap: break-word; }
 .content ul, .content ol { padding-left: 22px; }
 .content li { margin: 4px 0; }
 
-.content a { color: var(--blue-deep); text-decoration: none; border-bottom: 1px solid var(--underline); }
+.content a { color: var(--blue-deep); text-decoration: none; border-bottom: 1px solid var(--underline); overflow-wrap: break-word; }
 .content a:hover { color: var(--blue-accent); border-bottom-color: var(--blue-accent); }
 
-/* Inline code: neutral grey chip */
+/* Inline code: neutral grey chip. overflow-wrap lets a long unbroken path or
+   URL wrap instead of forcing the whole page to scroll horizontally on a
+   narrow screen. */
 .content code {
   font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   background: var(--grey-bg);
@@ -714,6 +733,7 @@ body {
   padding: 2px 6px;
   border-radius: 6px;
   font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 /* Code blocks: grey panel with a soft drop shadow in both themes */
@@ -735,13 +755,21 @@ body {
   font-size: 13px;
 }
 
-.content table {
-  width: 100%;
-  border-collapse: collapse;
+/* Tables scroll horizontally within this wrapper instead of overflowing the
+   page or squeezing columns illegible on a narrow screen. */
+.table-scroll {
   margin: 18px 0;
   border-radius: var(--radius-md);
-  overflow: hidden;
   box-shadow: var(--grey-shadow);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.content table {
+  width: 100%;
+  min-width: 460px;
+  border-collapse: collapse;
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
 .content th, .content td {
   padding: 10px 14px;
@@ -822,10 +850,13 @@ body {
   border-radius: 2px;
 }
 
+.sidebar-backdrop { display: none; }
+body.no-scroll { overflow: hidden; }
+
 @media (max-width: 860px) {
-  .topbar-inner { padding: 0 14px; }
+  .topbar-inner { padding: 0 12px; gap: 10px; }
   .brand-text { display: none; }
-  .layout { flex-direction: column; padding: 18px 14px 60px; }
+  .layout { flex-direction: column; padding: 16px 14px 60px; }
   .sidebar {
     position: fixed;
     left: 14px;
@@ -836,10 +867,29 @@ body {
     display: none;
   }
   .sidebar.open { display: block; }
-  .nav-toggle { display: flex; }
-  .content { padding: 26px 20px; }
-  .content h1 { font-size: 25px; }
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 16, 28, 0.4);
+    z-index: 14;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .sidebar-backdrop.open { opacity: 1; pointer-events: auto; }
+  .nav-toggle { display: flex; width: 38px; height: 38px; }
+  .theme-toggle { width: 38px; height: 38px; }
+  .content { padding: 24px 18px; }
+  .content h1 { font-size: 24px; }
+  .table-scroll { margin: 14px -18px; border-radius: 0; }
+  .content table { min-width: 0; }
   .topbar-github { padding: 6px 10px; font-size: 12px; }
+}
+
+@media (max-width: 420px) {
+  .topbar-github-text { display: none; }
+  .topbar-github { padding: 0; width: 38px; height: 38px; justify-content: center; gap: 0; }
 }
 """
 
@@ -875,11 +925,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var toggle = document.getElementById('navToggle');
   var sidebar = document.getElementById('sidebar');
+  var backdrop = document.getElementById('sidebarBackdrop');
+
+  function setSidebarOpen(open) {
+    if (!sidebar) return;
+    sidebar.classList.toggle('open', open);
+    if (backdrop) backdrop.classList.toggle('open', open);
+    document.body.classList.toggle('no-scroll', open);
+    if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
   if (toggle && sidebar) {
     toggle.addEventListener('click', function () {
-      sidebar.classList.toggle('open');
+      setSidebarOpen(!sidebar.classList.contains('open'));
     });
   }
+  if (backdrop) {
+    backdrop.addEventListener('click', function () { setSidebarOpen(false); });
+  }
+  window.addEventListener('resize', function () {
+    if (window.innerWidth > 860) setSidebarOpen(false);
+  });
 
   var groups = document.querySelectorAll('.nav-group');
   groups.forEach(function (group) {
