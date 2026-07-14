@@ -413,6 +413,65 @@ def bundle_page_order(pages: list[dict], sidebar_groups: dict) -> list[dict]:
     return ordered
 
 
+def render_bundle_sidebar(pages: list[dict], sidebar_groups: dict, path_to_anchor: dict) -> str:
+    """Builds the bundle's left-hand table of contents: the same curated
+    groups the live site's sidebar shows, using in-page #anchor links, plus
+    one more group covering every page the curated sidebar leaves out
+    (archived changes, .claude command/skill files) so this list is a
+    genuinely complete outline of the single file, not just the highlights."""
+    parts = ['<nav class="sidebar-nav">']
+
+    root_pages = sidebar_groups.get("", [])
+    if root_pages:
+        parts.append('<div class="nav-pinned">')
+        for page in root_pages:
+            anchor = path_to_anchor[str(page["rel"]).replace(os.sep, "/")]
+            parts.append(
+                f'<a class="nav-link nav-link-pinned" data-anchor="{anchor}" href="#{anchor}">{page["title"]}</a>'
+            )
+        parts.append("</div>")
+
+    seen: set[str] = {str(p["rel"]) for group in sidebar_groups.values() for p in group}
+
+    for top, children in sidebar_groups.items():
+        if top == "":
+            continue
+        title = group_title_for(top)
+        parts.append(f'<div class="nav-group" data-group="{top}">')
+        parts.append(
+            '<button type="button" class="nav-group-toggle" aria-expanded="false">'
+            f'<span class="nav-group-title">{title}</span>{CHEVRON_SVG}</button>'
+        )
+        parts.append('<ul class="nav-group-list">')
+        for page in children:
+            anchor = path_to_anchor[str(page["rel"]).replace(os.sep, "/")]
+            parts.append(
+                f'<li><a class="nav-link" data-anchor="{anchor}" href="#{anchor}">{page["title"]}</a></li>'
+            )
+        parts.append("</ul></div>")
+
+    remaining = [p for p in pages if str(p["rel"]) not in seen]
+    remaining.sort(key=lambda p: (str(p["rel"].parent), p["rel"].name.lower()))
+    if remaining:
+        parts.append('<div class="nav-group" data-group="reference">')
+        parts.append(
+            '<button type="button" class="nav-group-toggle" aria-expanded="false">'
+            f'<span class="nav-group-title">Reference</span>{CHEVRON_SVG}</button>'
+        )
+        parts.append('<ul class="nav-group-list">')
+        for page in remaining:
+            anchor = path_to_anchor[str(page["rel"]).replace(os.sep, "/")]
+            rel_str = str(page["rel"]).replace(os.sep, "/")
+            parts.append(
+                f'<li><a class="nav-link" data-anchor="{anchor}" href="#{anchor}" '
+                f'title="{rel_str}">{rel_str}</a></li>'
+            )
+        parts.append("</ul></div>")
+
+    parts.append("</nav>")
+    return "\n".join(parts)
+
+
 def render_bundle_section(page: dict, path_to_anchor: dict) -> str:
     raw = page["md"].read_text(encoding="utf-8")
     raw = rewrite_markdown_links_for_bundle(raw, page["md"], path_to_anchor)
@@ -452,27 +511,37 @@ BUNDLE_TEMPLATE = """<!DOCTYPE html>
   margin-bottom: 18px;
 }}
 .bundle-note a {{ color: var(--blue-accent); }}
-.bundle-toc {{ columns: 2; column-gap: 28px; margin: 18px 0 8px; }}
-.bundle-toc-group {{ break-inside: avoid; margin-bottom: 14px; }}
-.bundle-toc-group-title {{
-  font-size: 11.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--ink-faint); margin-bottom: 6px;
-}}
-.bundle-toc a {{ display: block; font-size: 13.5px; padding: 3px 0; color: var(--blue-deep); text-decoration: none; }}
-.bundle-toc a:hover {{ text-decoration: underline; }}
 .bundle-section {{ padding-top: 30px; margin-top: 30px; border-top: 1px solid var(--line); }}
-.bundle-section:first-of-type {{ border-top: none; }}
+.bundle-section:first-of-type {{ padding-top: 0; margin-top: 0; border-top: none; }}
 .bundle-path {{
   font-family: "SF Mono", Menlo, Consolas, monospace;
   font-size: 11.5px; color: var(--ink-faint); margin-bottom: 10px;
 }}
-.sidebar, .topbar, .breadcrumbs, .page-footer, .bg-blob {{ display: none; }}
-.layout {{ display: block; max-width: 880px; padding: 40px 24px 100px; }}
+.topbar, .breadcrumbs, .page-footer, .bg-blob {{ display: none; }}
+.layout {{
+  display: flex;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 40px 24px 100px;
+  gap: 28px;
+  align-items: flex-start;
+}}
+.sidebar {{ top: 20px; max-height: calc(100vh - 40px); }}
 .content {{ padding: 40px 52px; }}
+.content-wrap .content {{ max-width: 880px; }}
+
+@media (max-width: 860px) {{
+  .layout {{ flex-direction: column; padding: 20px 16px 60px; }}
+  .sidebar {{ position: static; width: 100%; max-height: none; }}
+  .content-wrap .content {{ max-width: none; padding: 26px 20px; }}
+}}
 </style>
 </head>
 <body>
 <div class="layout">
+  <aside class="sidebar glass" id="sidebar">
+    {sidebar_html}
+  </aside>
   <main class="content-wrap">
     <div class="content glass">
       <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode" style="position: fixed; top: 18px; right: 18px; z-index: 5;" aria-pressed="false">
@@ -485,10 +554,8 @@ BUNDLE_TEMPLATE = """<!DOCTYPE html>
         <a href="{github_repo_url}" target="_blank" rel="noopener">this repository</a>,
         generated automatically on {generated_date}. Browse the live, multi-page version at
         <a href="{live_site_url}" target="_blank" rel="noopener">{live_site_url}</a>.
+        Use the table of contents on the left to jump to any section.
       </p>
-      <nav class="bundle-toc">
-        {toc_html}
-      </nav>
       {sections_html}
     </div>
   </main>
@@ -506,6 +573,36 @@ document.addEventListener('DOMContentLoaded', function () {{
       themeToggle.setAttribute('aria-pressed', next === 'dark' ? 'true' : 'false');
     }});
   }}
+
+  document.querySelectorAll('.nav-group-toggle').forEach(function (btn) {{
+    btn.addEventListener('click', function () {{
+      var group = btn.closest('.nav-group');
+      var expanded = group.classList.toggle('expanded');
+      btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    }});
+  }});
+
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll('.nav-link[data-anchor]'));
+  var linkByAnchor = {{}};
+  navLinks.forEach(function (a) {{ linkByAnchor[a.dataset.anchor] = a; }});
+
+  function setActiveSection(anchor) {{
+    var link = linkByAnchor[anchor];
+    if (!link) return;
+    navLinks.forEach(function (a) {{ a.classList.remove('active'); }});
+    link.classList.add('active');
+    var group = link.closest('.nav-group');
+    if (group) group.classList.add('expanded');
+  }}
+
+  if (window.IntersectionObserver) {{
+    var observer = new IntersectionObserver(function (entries) {{
+      entries.forEach(function (entry) {{
+        if (entry.isIntersecting) setActiveSection(entry.target.id);
+      }});
+    }}, {{ rootMargin: '-15% 0px -75% 0px', threshold: 0 }});
+    document.querySelectorAll('.bundle-section').forEach(function (s) {{ observer.observe(s); }});
+  }}
 }});
 </script>
 </body>
@@ -520,19 +617,7 @@ def build_bundle(pages: list[dict], sidebar_groups: dict, bundle_out: Path, live
         str(p["rel"]).replace(os.sep, "/"): slugify_rel_path(p["rel"]) for p in pages
     }
     ordered = bundle_page_order(pages, sidebar_groups)
-
-    toc_parts = []
-    for top, group_pages in sidebar_groups.items():
-        if not group_pages:
-            continue
-        title = group_title_for(top) if top else "Home"
-        toc_parts.append(f'<div class="bundle-toc-group"><div class="bundle-toc-group-title">{title}</div>')
-        for page in group_pages:
-            anchor = path_to_anchor[str(page["rel"]).replace(os.sep, "/")]
-            toc_parts.append(f'<a href="#{anchor}">{page["title"]}</a>')
-        toc_parts.append("</div>")
-    toc_html = "\n".join(toc_parts)
-
+    sidebar_html = render_bundle_sidebar(pages, sidebar_groups, path_to_anchor)
     sections_html = "\n".join(render_bundle_section(page, path_to_anchor) for page in ordered)
 
     generated_date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
@@ -542,7 +627,7 @@ def build_bundle(pages: list[dict], sidebar_groups: dict, bundle_out: Path, live
         live_site_url=live_site_url,
         generated_date=generated_date,
         css=CSS,
-        toc_html=toc_html,
+        sidebar_html=sidebar_html,
         sections_html=sections_html,
     )
     bundle_out.parent.mkdir(parents=True, exist_ok=True)
